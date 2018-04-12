@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 import tensorflow as tf
 from vgg.vgg19 import Vgg19
 from vgg.vgg16 import Vgg16

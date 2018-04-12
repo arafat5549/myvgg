@@ -13,6 +13,9 @@ tmp/*
 bak/
 bak/*
 
+font/
+font/*
+
 __pycache__/
 __pycache__/*
 

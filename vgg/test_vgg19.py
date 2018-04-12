@@ -13,13 +13,31 @@ import utils
 import test_color as tcolor
 
 import os
-import cv2
 import argparse
 
-TEST_DATA="test_data"
+import cv2
+from PIL import Image
+from PIL import ImageFont
+from PIL import ImageDraw
 
+TEST_DATA="test_data"
 TRAIN_DATA="20180330"
 
+def writeImg(imgname,txt,bakpath="bak"):
+  #font = cv2.FONT_HERSHEY_SIMPLEX
+  #img = cv2.imread(imgname) 
+  #cv2.putText(img,txt , (int(img.shape[0]/3 - len(txt)), int(img.shape[1]/2)), font, 1, (0, 255, 0), 2)
+  #cv2.imwrite(os.path.join(bakpath,imgname),img)
+
+  # img = cv2.imdecode(np.fromfile(imgname,dtype=np.uint8),-1)
+  # cv2.putText(img,txt , (int(img.shape[0]/3 - len(txt)), int(img.shape[1]/2)), font, 1, (0, 255, 0), 2)
+  # cv2.imencode('.jpg',img)[1].tofile(os.path.join(bakpath,imgname))
+
+  img = Image.open(imgname)
+  draw = ImageDraw.Draw(img) 
+  font = ImageFont.truetype("font/simhei.ttf", 20, encoding="utf-8") 
+  draw.text((0, 0), "eg：打印在这里", (0, 0, 255), font=font) 
+  img.save(os.path.join(bakpath,imgname))
 
 def mkdir(path):
     path=path.strip()
@@ -64,11 +82,12 @@ def tensor_imgdata(imgdata,images,vgg,bakpath):
                 print("-"*25, tcolor.UseStyle(imgdata[x],mode = 'bold',fore = 'white') ,"-"*25)
                 res = utils.print_prob(prob[x], './synset.txt')    
 
-                #print(res[10:])
-                font = cv2.FONT_HERSHEY_SIMPLEX
-                img = cv2.imread(imgdata[x]) 
-                cv2.putText(img, res[10:], (int(img.shape[0]/3 - len(res[10:])), int(img.shape[1]/2)), font, 1, (0, 255, 0), 2)
-                cv2.imwrite(os.path.join(bakpath,imgdata[x]),img)
+                #writeImg(imgdata[x],res[10:],bakpath)
+
+                # font = cv2.FONT_HERSHEY_SIMPLEX
+                # img = cv2.imread(imgdata[x]) 
+                # cv2.putText(img, res[10:], (int(img.shape[0]/3 - len(res[10:])), int(img.shape[1]/2)), font, 1, (0, 255, 0), 2)
+                # cv2.imwrite(os.path.join(bakpath,imgdata[x]),img)
 
 
 def main():

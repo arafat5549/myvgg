@@ -1,0 +1,7 @@
+vgg19的例子比较完整，建议使用vgg19
+
+1.运行例子
+python test_vgg19.py --path test_data  #如果不指定path默认就为test_data
+
+2.训练精度
+python test_vgg_trainable.py

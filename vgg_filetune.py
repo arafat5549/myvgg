@@ -62,6 +62,8 @@ MODEL_PATH = "vgg/"+VGG_TYPE+".ckpt"
 TRAIN_MODEL_NAME = "checkpoints/train_"+VGG_TYPE
 EPOCH =10
 
+CKPT_TYPE="V2"
+
 parser = argparse.ArgumentParser()
 parser.add_argument('--train_dir', default='imgdata/coco-animals/train')
 parser.add_argument('--val_dir', default='imgdata/coco-animals/val')
@@ -293,7 +295,7 @@ def main(args):
         prediction = tf.to_int32(tf.argmax(logits, 1))
         correct_prediction = tf.equal(prediction, labels)
         accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-        saver = tf.train.Saver()#write_version=tf.train.SaverDef.V1
+        saver = tf.train.Saver(write_version=tf.train.SaverDef.V1) if CKPT_TYPE == "V1" else tf.train.Saver()
         tf.get_default_graph().finalize()
 
     # --------------------------------------------------------------------------

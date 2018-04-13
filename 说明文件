@@ -1,3 +1,13 @@
+tensorflow版本 1.2 
+python版本3.6
+
+https://storage.googleapis.com/tensorflow/mac/cpu/tensorflow-1.2.0-py3-none-any.whl
+
+
+#pip3 install --upgrade ternsorflow==1.6.0  # tensorflow-gpu==1.6.0
+pip3 install --upgrade scikit-image scipy matplotlib
+#pip3 install --upgrade numpy virtualenv
+
 vgg19的例子比较完整，建议使用vgg19
 
 1.运行例子

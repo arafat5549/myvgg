@@ -59,7 +59,7 @@ import tensorflow.contrib.slim.nets
 
 VGG_TYPE="vgg_16"
 MODEL_PATH = "vgg/"+VGG_TYPE+".ckpt"
-TRAIN_MODEL_NAME = "checkpoints/train_"+VGG_TYPE
+#TRAIN_MODEL_NAME = "checkpoints/train_"+VGG_TYPE
 EPOCH =10
 
 CKPT_TYPE="V2"
@@ -237,6 +237,7 @@ def main(args):
                                                            batched_train_dataset.output_shapes)
         images, labels = iterator.get_next()
 
+
         train_init_op = iterator.make_initializer(batched_train_dataset)
         val_init_op = iterator.make_initializer(batched_val_dataset)
 
@@ -283,6 +284,7 @@ def main(args):
 
         # First we want to train only the reinitialized last layer fc8 for a few epochs.
         # We run minimize the loss only with respect to the fc8 variables (weight and bias).
+        train_global_step = tf.Variable(0, name='global_step', trainable=True)
         fc8_optimizer = tf.train.GradientDescentOptimizer(args.learning_rate1)
         fc8_train_op = fc8_optimizer.minimize(loss, var_list=fc8_variables)
 
@@ -329,7 +331,7 @@ def main(args):
             valstr=tcolor.UseStyle(val_acc,mode = 'bold',fore = 'yellow')
             print('Train accuracy: %s , Val accuracy: %s\n' % (trainstr,valstr))
 
-
+        save_ckpt(saver,sess,"checkpoints/vgg_16/model.ckpt")    
         # Train the entire model for a few more epochs, continuing with the *same* weights.
         for epoch in range(args.num_epochs2):
             print('Starting epoch %d / %d' % (epoch + 1, args.num_epochs2))
@@ -349,10 +351,10 @@ def main(args):
             valstr=tcolor.UseStyle(val_acc,mode = 'bold',fore = 'blue')
             print('Train accuracy: %s , Val accuracy: %s\n' % (trainstr,valstr))
         
-        save_ckpt(saver,sess) 
+        save_ckpt(saver,sess,"checkpoints/vgg_16/all/model.ckpt") 
         #save_npy(var_dict,sess)
 
-def save_ckpt(saver,sess,path=TRAIN_MODEL_NAME+".ckpt"):
+def save_ckpt(saver,sess,path):
     save_path = saver.save(sess, path)
     return save_path
 

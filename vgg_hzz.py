@@ -54,7 +54,8 @@ if __name__ == '__main__':
 	# 	prob = sess.run(model.prob, feed_dict=feed_dict)
 	# 	for x in range(0,num):
 	# 		print("-"*25, tcolor.UseStyle(imgdata[x],mode = 'bold',fore = 'white') ,"-"*25)
-	# 		utils.print_prob(prob[x], './synset.txt')  
+	# 		utils.print_prob(prob[x], './synset.txt') 
+	 
 
  
 

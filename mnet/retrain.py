@@ -868,6 +868,7 @@ def create_model_info(architecture):
     model_file_name = 'classify_image_graph_def.pb'
     input_mean = 128
     input_std = 128
+    input_layer ='Mul'
   elif architecture == 'inception_v4':
     data_url = 'http://download.tensorflow.org/models/inception_v4_2016_09_09.tar.gz'
 
@@ -911,6 +912,7 @@ def create_model_info(architecture):
     model_file_name = os.path.join(model_dir_name, model_base_name)
     input_mean = 127.5
     input_std = 127.5
+    input_layer = 'input'
   else:
     tf.logging.error("Couldn't understand architecture name '%s'", architecture)
     raise ValueError('Unknown architecture', architecture)
@@ -926,13 +928,14 @@ def create_model_info(architecture):
       'model_file_name': model_file_name,
       'input_mean': input_mean,
       'input_std': input_std,
+      'input_layer': input_layer,
+      'output_layer':'final_result',
   }
 
 
 def add_jpeg_decoding(input_width, input_height, input_depth, input_mean,
                       input_std):
   """Adds operations that perform JPEG decoding and resizing to the graph..
-
   Args:
     input_width: Desired width of the image fed into the recognizer graph.
     input_height: Desired width of the image fed into the recognizer graph.
@@ -974,8 +977,7 @@ def main(_):
 
   # Set up the pre-trained graph.
   maybe_download_and_extract(model_info['data_url'])
-  graph, bottleneck_tensor, resized_image_tensor = (
-      create_model_graph(model_info))
+  graph, bottleneck_tensor, resized_image_tensor = (create_model_graph(model_info))
 
   # Look at the folder structure, and create lists of all the images.
   image_lists = create_image_lists(FLAGS.image_dir, FLAGS.testing_percentage,FLAGS.validation_percentage)
@@ -1022,8 +1024,7 @@ def main(_):
          model_info['bottleneck_tensor_size'])
 
     # Create the operations we need to evaluate the accuracy of our new layer.
-    evaluation_step, prediction = add_evaluation_step(
-        final_tensor, ground_truth_input)
+    evaluation_step, prediction = add_evaluation_step(final_tensor, ground_truth_input)
 
     # Merge all the summaries and write them out to the summaries_dir
     merged = tf.summary.merge_all()
@@ -1040,14 +1041,12 @@ def main(_):
       # Get a batch of input bottleneck values, either calculated fresh every
       # time with distortions applied, or from the cache stored on disk.
       if do_distort_images:
-        (train_bottlenecks,
-         train_ground_truth) = get_random_distorted_bottlenecks(
+        (train_bottlenecks, train_ground_truth) = get_random_distorted_bottlenecks(
              sess, image_lists, FLAGS.train_batch_size, 'training',
              FLAGS.image_dir, distorted_jpeg_data_tensor,
              distorted_image_tensor, resized_image_tensor, bottleneck_tensor)
       else:
-        (train_bottlenecks,
-         train_ground_truth, _) = get_random_cached_bottlenecks(
+        (train_bottlenecks,train_ground_truth, _) = get_random_cached_bottlenecks(
              sess, image_lists, FLAGS.train_batch_size, 'training',
              FLAGS.bottleneck_dir, FLAGS.image_dir, jpeg_data_tensor,
              decoded_image_tensor, resized_image_tensor, bottleneck_tensor,
@@ -1082,14 +1081,12 @@ def main(_):
             feed_dict={bottleneck_input: validation_bottlenecks,
                        ground_truth_input: validation_ground_truth})
         validation_writer.add_summary(validation_summary, i)
-        tf.logging.info('%s: Step %d: Validation accuracy = %.1f%% (N=%d)' %
-                        (datetime.now(), i, validation_accuracy * 100,len(validation_bottlenecks)))
+        tf.logging.info('%s: Step %d: Validation accuracy = %.1f%% (N=%d)' % (datetime.now(), i, validation_accuracy * 100,len(validation_bottlenecks)))
 
       # Store intermediate results
       intermediate_frequency = FLAGS.intermediate_store_frequency
 
-      if (intermediate_frequency > 0 and (i % intermediate_frequency == 0)
-          and i > 0):
+      if (intermediate_frequency > 0 and (i % intermediate_frequency == 0) and i > 0):
         intermediate_file_name = (FLAGS.intermediate_output_graphs_dir +'intermediate_' + str(i) + '.pb')
         tf.logging.info('Save intermediate result to : ' + intermediate_file_name)
         save_graph_to_file(sess, graph, intermediate_file_name)
@@ -1104,29 +1101,27 @@ def main(_):
             FLAGS.architecture))
     test_accuracy, predictions = sess.run(
         [evaluation_step, prediction],
-        feed_dict={bottleneck_input: test_bottlenecks,
-                   ground_truth_input: test_ground_truth})
-    tf.logging.info('Final test accuracy = %.1f%% (N=%d)' %
-                    (test_accuracy * 100, len(test_bottlenecks)))
+        feed_dict={bottleneck_input: test_bottlenecks,ground_truth_input: test_ground_truth})
+    tf.logging.info('Final test accuracy = %.1f%% (N=%d)' % (test_accuracy * 100, len(test_bottlenecks)))
 
     if FLAGS.print_misclassified_test_images:
       tf.logging.info('=== MISCLASSIFIED TEST IMAGES ===')
       for i, test_filename in enumerate(test_filenames):
         if predictions[i] != test_ground_truth[i].argmax():
-          tf.logging.info('%70s  %s' %
-                          (test_filename,
-                           list(image_lists.keys())[predictions[i]]))
-
-    # Write out the trained graph and labels with the weights stored as
-    # constants.
+          tf.logging.info('%70s  %s' % (test_filename, list(image_lists.keys())[predictions[i]]))
+    # Write out the trained graph and labels with the weights stored as constants.
     save_graph_to_file(sess, graph, FLAGS.output_graph)
     with gfile.FastGFile(FLAGS.output_labels, 'w') as f:
       f.write('\n'.join(image_lists.keys()) + '\n')
 
-model_dir = 'tmp/mnet'
-image_dir = 'imgdata/coco-animals/train'
-arch =    'mobilenet_1.0_224' #inception_v4
+model_dir    = 'tmp/mnet'
 
+image_dir    = 'imgdata/coco-animals/train'
+architecture = 'inception_v3'   #'mobilenet_1.0_224' #
+graph        = 'tmp/output_graph.pb'
+label_file   = 'tmp/output_labels.txt'
+output_layer = 'final_result'
+#layer_name   = 'final_training_ops'
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   parser.add_argument(
@@ -1138,8 +1133,38 @@ if __name__ == '__main__':
   parser.add_argument(
       '--output_graph',
       type=str,
-      default='tmp/output_graph.pb',
+      default=graph,
       help='Where to save the trained graph.'
+  )
+  parser.add_argument(
+      '--output_label',
+      type=str,
+      default=label_file,
+      help='Where to save the trained graph\'s labels.'
+  )
+  parser.add_argument(
+      '--model_dir',
+      type=str,
+      default=model_dir,
+      help="""\
+      Path to classify_image_graph_def.pb,
+      imagenet_synset_to_human_label_map.txt, and
+      imagenet_2012_challenge_label_map_proto.pbtxt.\
+      """
+  )
+  parser.add_argument(
+      '--bottleneck_dir',
+      type=str,
+      default='tmp/bottleneck',
+      help='Path to cache bottleneck layer values as files.'
+  )
+  parser.add_argument(
+      '--final_tensor_name',
+      type=str,
+      default=output_layer,
+      help="""\
+      The name of the output classification layer in the retrained graph.\
+      """
   )
   parser.add_argument(
       '--intermediate_output_graphs_dir',
@@ -1155,12 +1180,6 @@ if __name__ == '__main__':
          How many steps to store intermediate graph. If "0" then will not
          store.\
       """
-  )
-  parser.add_argument(
-      '--output_labels',
-      type=str,
-      default='tmp/output_labels.txt',
-      help='Where to save the trained graph\'s labels.'
   )
   parser.add_argument(
       '--summaries_dir',
@@ -1236,30 +1255,7 @@ if __name__ == '__main__':
       """,
       action='store_true'
   )
-  parser.add_argument(
-      '--model_dir',
-      type=str,
-      default=model_dir,
-      help="""\
-      Path to classify_image_graph_def.pb,
-      imagenet_synset_to_human_label_map.txt, and
-      imagenet_2012_challenge_label_map_proto.pbtxt.\
-      """
-  )
-  parser.add_argument(
-      '--bottleneck_dir',
-      type=str,
-      default='tmp/bottleneck',
-      help='Path to cache bottleneck layer values as files.'
-  )
-  parser.add_argument(
-      '--final_tensor_name',
-      type=str,
-      default='final_result',
-      help="""\
-      The name of the output classification layer in the retrained graph.\
-      """
-  )
+
   parser.add_argument(
       '--flip_left_right',
       default=False,
@@ -1298,7 +1294,7 @@ if __name__ == '__main__':
   parser.add_argument(
       '--architecture',
       type=str,
-      default=arch,
+      default=architecture,
       help="""\
       Which model architecture to use. 'inception_v3' is the most accurate, but
       also the slowest. For faster or smaller models, chose a MobileNet with the

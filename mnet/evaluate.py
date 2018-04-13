@@ -32,9 +32,11 @@ import mnet.retrain as retrain
 from mnet.count_ops import load_graph
 
 
-image_dir = 'imgdata/coco-animals/train'
+image_dir = retrain.image_dir       #'imgdata/coco-animals/train'
+architecture = retrain.architecture #'inception_v3'
+graph = retrain.graph               #'tmp/output_graph.pb'
 
-def loadFrom(path=image_dir):
+def loadFrom(path):
     imgs=[]
     extensions = ['jpg', 'jpeg', 'JPG', 'JPEG','png','PNG']
     for (root,dirs,files) in os.walk(path):
@@ -44,15 +46,22 @@ def loadFrom(path=image_dir):
             imgs.append(d)
     return imgs
 
-def evaluate_graph(graph_file_name='tmp/output_graph.pb'):
-    dirs = loadFrom()
-    #print(len(dirs),dirs)
+def evaluate_graph(image_dir,architecture,graph_file_name):
+    dirs = loadFrom(image_dir)
+    ret = retrain.create_model_info(architecture)
+    
+    input_layer = ret['input_layer']+":0"
+    output_layer = ret['output_layer']+":0"
+    input_width = ret['input_width']
+    input_height = ret['input_height']
+    input_mean = ret['input_mean']
+    input_std  = ret['input_std']
     classsize = len(dirs)
     with load_graph(graph_file_name).as_default() as graph:
         ground_truth_input = tf.placeholder(tf.float32, [None, classsize], name='GroundTruthInput')
         
-        image_buffer_input = graph.get_tensor_by_name('input:0')
-        final_tensor = graph.get_tensor_by_name('final_result:0')
+        image_buffer_input = graph.get_tensor_by_name(input_layer)
+        final_tensor = graph.get_tensor_by_name(output_layer)#
         accuracy, _ = retrain.add_evaluation_step(final_tensor, ground_truth_input)
         
         logits = graph.get_tensor_by_name("final_training_ops/Wx_plus_b/add:0")
@@ -75,6 +84,7 @@ def evaluate_graph(graph_file_name='tmp/output_graph.pb'):
     for label_index, label_name in enumerate(image_lists.keys()):
       for image_index, image_name in enumerate(image_lists[label_name][category]):
         image_name = retrain.get_image_path(image_lists, label_name, image_index, image_dir, category)
+        
         ground_truth = np.zeros([1, class_count], dtype=np.float32)
         ground_truth[0, label_index] = 1.0
         ground_truths.append(ground_truth)
@@ -84,9 +94,9 @@ def evaluate_graph(graph_file_name='tmp/output_graph.pb'):
     xents = []
     with tf.Session(graph=graph) as sess:
         for filename, ground_truth in zip(filenames, ground_truths):    
-            image = Image.open(filename).resize((224,224),Image.ANTIALIAS)
+            image = Image.open(filename).resize((input_width,input_height),Image.ANTIALIAS)
             image = np.array(image, dtype=np.float32)[None,...]
-            image = (image-128)/128.0
+            image = (image-input_mean)/input_std
 
             feed_dict={
                 image_buffer_input: image,
@@ -96,19 +106,39 @@ def evaluate_graph(graph_file_name='tmp/output_graph.pb'):
             
             accuracies.append(eval_accuracy)
             xents.append(eval_xent)
-        
-        
-    return np.mean(accuracies), np.mean(xents)
 
+    print(len(filenames),class_count)        
+    print("filenames:",filenames,"\n")  
+    print("ground_truths:",ground_truths,"\n")   
+    print("accuracies:",accuracies,"\n")  
+    print("xents:",xents,"\n")  
+    return np.mean(accuracies), np.mean(xents)
 
 
 if __name__ == "__main__":
 
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
-    accuracy,xent = evaluate_graph(*sys.argv[1:])
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--image_dir',type=str,default=image_dir)
+    parser.add_argument('--architecture',type=str,default=architecture)
+    parser.add_argument('--graph',type=str,default=graph)
+
+    args = parser.parse_args()
+    if(args.image_dir):  image_dir = args.image_dir
+    if(args.architecture):  architecture = args.architecture
+    if(args.graph):  graph = args.graph
+
+    print(image_dir,architecture,graph)
+    ret = retrain.create_model_info(architecture)
+    print(ret)
+    accuracy,xent = evaluate_graph(image_dir,architecture,graph)
     print('Accuracy: %g' % accuracy)
     print('Cross Entropy: %g' % xent)
 
 
     
   
+
+
+

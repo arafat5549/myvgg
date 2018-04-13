@@ -33,6 +33,7 @@ import numpy as np
 import tensorflow as tf
 
 import test_color as tcolor
+import mnet.retrain as retrain
 
 def load_graph(model_file):
   graph = tf.Graph()
@@ -45,29 +46,24 @@ def load_graph(model_file):
 
   return graph
 
-def read_tensor_from_image_file(file_name, input_height=299, input_width=299,
-				input_mean=0, input_std=255):
+def read_tensor_from_image_file(file_name, input_height=299, input_width=299,input_mean=0, input_std=255):
   input_name = "file_reader"
   output_name = "normalized"
   file_reader = tf.read_file(file_name, input_name)
   if file_name.endswith(".png"):
-    image_reader = tf.image.decode_png(file_reader, channels = 3,
-                                       name='png_reader')
+    image_reader = tf.image.decode_png(file_reader, channels = 3, name='png_reader')
   elif file_name.endswith(".gif"):
-    image_reader = tf.squeeze(tf.image.decode_gif(file_reader,
-                                                  name='gif_reader'))
+    image_reader = tf.squeeze(tf.image.decode_gif(file_reader, name='gif_reader'))
   elif file_name.endswith(".bmp"):
     image_reader = tf.image.decode_bmp(file_reader, name='bmp_reader')
   else:
-    image_reader = tf.image.decode_jpeg(file_reader, channels = 3,
-                                        name='jpeg_reader')
+    image_reader = tf.image.decode_jpeg(file_reader, channels = 3, name='jpeg_reader')
   float_caster = tf.cast(image_reader, tf.float32)
   dims_expander = tf.expand_dims(float_caster, 0);
   resized = tf.image.resize_bilinear(dims_expander, [input_height, input_width])
   normalized = tf.divide(tf.subtract(resized, [input_mean]), [input_std])
   sess = tf.Session()
   result = sess.run(normalized)
-
   return result
 
 def load_labels(label_file):
@@ -77,8 +73,9 @@ def load_labels(label_file):
     label.append(l.rstrip())
   return label
 
-image_dir = 'imgdata/coco-animals/val/'
-def loadFrom(path=image_dir):
+
+
+def loadFrom(path):
     imgs=[]
     extensions = ['jpg', 'jpeg', 'JPG', 'JPEG','png','PNG']
     for (root,dirs,files) in os.walk(path):
@@ -116,12 +113,14 @@ def writeImg(imgname,txt,bakpath="bak"):
   offset=(0,0)#(int(img.width/3 - len(txt)), int(img.height/2))
   draw.text(offset, " 奥爱你打印在这里", (0, 255, 0), font=font) 
   img.save(os.path.join(bakpath,imgname))
-  
+
 
 if __name__ == "__main__":
-  file_name = "rose.jpeg"
-  model_file = "tmp/output_graph.pb"   
-  label_file = "tmp/output_labels.txt" 
+  image_dir = retrain.image_dir       #'imgdata/coco-animals/train'
+  architecture = retrain.architecture #'inception_v3'
+  graph = retrain.graph               #'tmp/output_graph.pb'  
+  label_file = retrain.label_file     #"tmp/output_labels.txt" 
+
   input_height = 224
   input_width = 224
   input_mean = 128
@@ -129,58 +128,35 @@ if __name__ == "__main__":
   input_layer = "input"
   output_layer = "final_result"
   
-  xmode = 0
-  if xmode == 1:
-    model_file = "tmp/mnet/mobilenet_v1_1.0_224/frozen_graph.pb" 
-    label_file = "tmp/mnet/mobilenet_v1_1.0_224/labels.txt" 
-    input_mean = 127.5
-    input_std  = 127.5
-    input_layer = "input"
-    output_layer = "MobilenetV1/Predictions/Reshape"
   
-  
-
   parser = argparse.ArgumentParser()
-  parser.add_argument("--image", help="image to be processed")
-  parser.add_argument("--graph", help="graph/model to be executed")
-  parser.add_argument("--labels", help="name of file containing labels")
-  parser.add_argument("--input_height", type=int, help="input height")
-  parser.add_argument("--input_width", type=int, help="input width")
-  parser.add_argument("--input_mean", type=int, help="input mean")
-  parser.add_argument("--input_std", type=int, help="input std")
-  parser.add_argument("--input_layer", help="name of input layer")
-  parser.add_argument("--output_layer", help="name of output layer")
+  parser.add_argument("--image_dir", type=str,default=image_dir)
+  parser.add_argument("--graph", type=str,default=graph)
+  parser.add_argument("--label_file", type=str,default=label_file)
+  parser.add_argument("--architecture", type=str,default=architecture)
+
   args = parser.parse_args()
 
-  if args.graph:
-    model_file = args.graph
-  if args.image:
-    file_name = args.image
-  if args.labels:
-    label_file = args.labels
-  if args.input_height:
-    input_height = args.input_height
-  if args.input_width:
-    input_width = args.input_width
-  if args.input_mean:
-    input_mean = args.input_mean
-  if args.input_std:
-    input_std = args.input_std
-  if args.input_layer:
-    input_layer = args.input_layer
-  if args.output_layer:
-    output_layer = args.output_layer
+  if args.graph:  graph = args.graph
+  if args.image_dir:  image_dir = args.image_dir
+  if args.label_file: label_file = args.label_file
+  if args.architecture: architecture = args.architecture
 
-  graph = load_graph(model_file)
+  ret = retrain.create_model_info(architecture)
+  input_width = ret['input_width']
+  input_height = ret['input_height']
+  input_mean = ret['input_mean']
+  input_std  = ret['input_std']
+  input_layer = ret['input_layer']
+  output_layer = ret['output_layer']
 
+  print(image_dir,architecture,graph,label_file)
+  
 
+  xgraph = load_graph(graph)
   imgdata = []
-  imgdata = loadFrom()
+  imgdata = loadFrom(image_dir)
 
-  #mkdir("bak/"+image_dir)
-  #writeImg(imgdata[0],"你好")
-  #imgdata = []
-  #num=len(imgdata)
 
   for fname in imgdata:
     t = read_tensor_from_image_file(fname,
@@ -191,10 +167,10 @@ if __name__ == "__main__":
 
     input_name = "import/" + input_layer
     output_name = "import/" + output_layer
-    input_operation = graph.get_operation_by_name(input_name);
-    output_operation = graph.get_operation_by_name(output_name);
+    input_operation = xgraph.get_operation_by_name(input_name);
+    output_operation = xgraph.get_operation_by_name(output_name);
 
-    with tf.Session(graph=graph) as sess:
+    with tf.Session(graph=xgraph) as sess:
       start = time.time()
       results = sess.run(output_operation.outputs[0],{input_operation.outputs[0]: t})
       end=time.time()
@@ -202,9 +178,7 @@ if __name__ == "__main__":
 
     top_k = results.argsort()[-1:][::-1]
     labels = load_labels(label_file)
-    print('\nEvaluation time (1-image): {:.3f}s'.format(end-start))
-
+    #print('\nEvaluation time (1-image): {:.3f}s'.format(end-start))
     for i in top_k:
-      #ret+=(labels[i]+" "+results[i]+",")
       label=tcolor.UseStyle(labels[i],mode = 'bold',fore = 'green')
-      print("["+fname+"]", label, results[i])
+      print('\nEvaluation time (1-image): {:.3f}s: '.format(end-start) , "["+fname+"]", label, results[i])

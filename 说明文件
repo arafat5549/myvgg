@@ -1,8 +1,9 @@
 tensorflow版本 1.2 
 python版本3.6
 
-https://storage.googleapis.com/tensorflow/mac/cpu/tensorflow-1.2.0-py3-none-any.whl
+如果使用GPU加速 建议CUDA=V8.0 + CUDNN=V6.0[cudnn-8.0-windows10-x64-v6.0]
 
+https://storage.googleapis.com/tensorflow/mac/cpu/tensorflow-1.2.0-py3-none-any.whl
 
 #pip3 install --upgrade ternsorflow==1.6.0  # tensorflow-gpu==1.6.0
 pip3 install --upgrade scikit-image scipy matplotlib

@@ -76,7 +76,7 @@ def test_image_vgg16(imgdata,npypath,xmode=0):
         batchs.append(b)
     batch = np.concatenate(batchs, 0)
 
-    with tf.device('/cpu:0'): 
+    with tf.device('/device:GPU:0'): 
         with tf.Session() as sess:
             feed_dict = {images: batch}
             prob = sess.run(model.prob, feed_dict=feed_dict)
